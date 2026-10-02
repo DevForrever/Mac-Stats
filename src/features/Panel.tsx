@@ -1,165 +1,316 @@
 import { useEffect, useRef, useState } from 'react'
+import styles from './Panel.module.css'
 
 type DeviceInfo = {
     architecture: string | null
     platform: string | null
     cores: number | null
 }
-type RawMetric = { name: string; value: number }
-type HeapUsage = { usedSize: number; totalSize: number }
+
+type RawMetric = {
+    name: string
+    value: number
+}
+
 type MetricsUpdateMessage = {
     type: 'METRICS_UPDATE'
     metrics: { metrics: RawMetric[] }
-    heap: HeapUsage
+    heap: { usedSize: number; totalSize: number }
 }
-type PageMetricsMessage = {
+
+type PageMetricsUpdateMessage = {
     type: 'PAGE_METRICS_UPDATE'
     fps?: number
     longTasksLast10s?: number
 }
-type InboundMessage = MetricsUpdateMessage | PageMetricsMessage
+
+type MonitoringStateMessage = {
+    type: 'MONITORING_STATE'
+    ok: boolean
+    isMonitoring: boolean
+    error?: string
+}
+
+type PanelMessage = MetricsUpdateMessage | PageMetricsUpdateMessage | MonitoringStateMessage
 
 export function Panel() {
     const [device, setDevice] = useState<DeviceInfo | null>(null)
     const [isMonitoring, setIsMonitoring] = useState(false)
+    const [isBusy, setIsBusy] = useState(false)
     const [cpuPercent, setCpuPercent] = useState<number | null>(null)
     const [heapMb, setHeapMb] = useState<number | null>(null)
-    const [error, setError] = useState<string | null>(null)
     const [fps, setFps] = useState<number | null>(null)
     const [longTasks, setLongTasks] = useState<number | null>(null)
+    const [error, setError] = useState<string | null>(null)
+
+    const portRef = useRef<chrome.runtime.Port | null>(null)
     const prevTaskDuration = useRef<number | null>(null)
     const prevTimestamp = useRef<number | null>(null)
 
+    const theme = chrome.devtools.panels.themeName === 'dark' ? 'dark' : 'light'
+
     useEffect(() => {
-        async function loadDeviceInfo() {
-            const cores = navigator.hardwareConcurrency ?? null
-            const data = (navigator as any).userAgentData
+        let mounted = true
 
-            if (!data) {
-                setDevice({ architecture: null, platform: null, cores })
-                return
-            }
+        chrome.runtime
+            .getPlatformInfo()
+            .then(({ os, arch }) => {
+                if (!mounted) return
 
-            const highEntropy = await data.getHighEntropyValues(['architecture', 'platform'])
-            setDevice({
-                architecture: highEntropy.architecture ?? null,
-                platform: highEntropy.platform ?? null,
-                cores
+                setDevice({
+                    platform: os,
+                    architecture: arch,
+                    cores: navigator.hardwareConcurrency ?? null
+                })
             })
-        }
+            .catch(() => {
+                if (!mounted) return
 
-        loadDeviceInfo()
+                setDevice({
+                    platform: null,
+                    architecture: null,
+                    cores: navigator.hardwareConcurrency ?? null
+                })
+            })
+
+        return () => {
+            mounted = false
+        }
     }, [])
 
     useEffect(() => {
-        function handleMessage(message: InboundMessage) {
+        let mounted = true
+        const port = chrome.runtime.connect({ name: 'mac-stats-panel' })
+
+        portRef.current = port
+
+        port.onMessage.addListener((message: PanelMessage) => {
+            if (!mounted) return
+
+            if (message.type === 'MONITORING_STATE') {
+                setIsMonitoring(message.isMonitoring)
+                setIsBusy(false)
+                setError(message.ok ? null : (message.error ?? 'Не удалось подключиться к вкладке'))
+
+                if (!message.isMonitoring) {
+                    resetMetrics()
+                }
+
+                return
+            }
+
             if (message.type === 'METRICS_UPDATE') {
-                const raw = message.metrics.metrics
-                const taskDurationMetric = raw.find((m) => m.name === 'TaskDuration')
+                const taskDuration = message.metrics.metrics.find((metric) => metric.name === 'TaskDuration')
 
-                if (taskDurationMetric) {
+                if (taskDuration) {
                     const now = performance.now()
-                    const currentDuration = taskDurationMetric.value
+                    const durationDelta =
+                        prevTaskDuration.current === null ? null : taskDuration.value - prevTaskDuration.current
+                    const timeDeltaSeconds =
+                        prevTimestamp.current === null ? null : (now - prevTimestamp.current) / 1000
 
-                    if (prevTaskDuration.current !== null && prevTimestamp.current !== null) {
-                        const durationDelta = currentDuration - prevTaskDuration.current
-                        const timeDeltaSeconds = (now - prevTimestamp.current) / 1000
+                    if (
+                        durationDelta !== null &&
+                        timeDeltaSeconds !== null &&
+                        durationDelta >= 0 &&
+                        timeDeltaSeconds > 0
+                    ) {
                         const percent = Math.min(100, Math.round((durationDelta / timeDeltaSeconds) * 100))
+
                         setCpuPercent(percent)
                     }
 
-                    prevTaskDuration.current = currentDuration
+                    prevTaskDuration.current = taskDuration.value
                     prevTimestamp.current = now
                 }
 
-                if (message.heap) {
-                    const usedMb = message.heap.usedSize / 1024 / 1024
-                    setHeapMb(Math.round(usedMb * 10) / 10)
-                }
+                setHeapMb(Math.round((message.heap.usedSize / 1024 / 1024) * 10) / 10)
+                return
             }
 
             if (message.type === 'PAGE_METRICS_UPDATE') {
                 if (message.fps !== undefined) setFps(message.fps)
-                if (message.longTasksLast10s !== undefined) setLongTasks(message.longTasksLast10s)
+                if (message.longTasksLast10s !== undefined) {
+                    setLongTasks(message.longTasksLast10s)
+                }
             }
-        }
+        })
 
-        chrome.runtime.onMessage.addListener(handleMessage)
-        return () => chrome.runtime.onMessage.removeListener(handleMessage)
+        port.onDisconnect.addListener(() => {
+            if (portRef.current === port) {
+                portRef.current = null
+            }
+
+            if (!mounted) return
+
+            setIsMonitoring(false)
+            setIsBusy(false)
+            setError('Соединение с фоновым процессом потеряно')
+        })
+
+        return () => {
+            mounted = false
+
+            if (portRef.current === port) {
+                portRef.current = null
+            }
+
+            port.disconnect()
+        }
     }, [])
 
-    async function handleToggleMonitoring() {
+    function resetMetrics() {
+        setCpuPercent(null)
+        setHeapMb(null)
+        setFps(null)
+        setLongTasks(null)
+        prevTaskDuration.current = null
+        prevTimestamp.current = null
+    }
+
+    function handleToggleMonitoring() {
+        const port = portRef.current
+
+        if (!port || isBusy) return
+
         setError(null)
+        setIsBusy(true)
 
-        if (isMonitoring) {
-            await chrome.runtime.sendMessage({ type: 'STOP_MONITORING' })
-            setIsMonitoring(false)
-            setCpuPercent(null)
-            setHeapMb(null)
-            prevTaskDuration.current = null
-            prevTimestamp.current = null
-            return
-        }
-
-        const tabId = chrome.devtools.inspectedWindow.tabId
-        const response = await chrome.runtime.sendMessage({ type: 'START_MONITORING', tabId })
-
-        if (response?.ok) {
-            setIsMonitoring(true)
-        } else {
-            setError(response?.error ?? 'Не удалось подключиться к вкладке')
+        try {
+            if (isMonitoring) {
+                port.postMessage({ type: 'STOP_MONITORING' })
+            } else {
+                port.postMessage({
+                    type: 'START_MONITORING',
+                    tabId: chrome.devtools.inspectedWindow.tabId
+                })
+            }
+        } catch (requestError) {
+            setIsBusy(false)
+            setError(requestError instanceof Error ? requestError.message : 'Не удалось отправить команду мониторинга')
         }
     }
 
-    return (
-        <div>
-            <div>
-                {device === null ? (
-                    <span>Определяю устройство…</span>
-                ) : (
-                    <>
-                        <Row label='Платформа' value={device.platform ?? 'неизвестно'} />
-                        <Row
-                            label='Архитектура'
-                            value={device.architecture === 'arm' ? 'Apple Silicon (arm64)' : 'Intel (x86_64)'}
-                        />
-                        <Row label='Ядра CPU' value={device.cores?.toString() ?? 'недоступно'} />
-                    </>
-                )}
-            </div>
-            <div>
-                <MetricBlock label='FPS' value={fps === null ? '…' : `${fps}`} />
-                <MetricBlock label='Long tasks / 10с' value={longTasks === null ? '…' : `${longTasks}`} />
-            </div>
-            <div>
-                <button onClick={handleToggleMonitoring}>{isMonitoring ? 'Остановить' : 'Запустить'}</button>
-                {error && <p>Ошибка: {error}</p>}
+    const statusText = isBusy ? 'Подключение…' : isMonitoring ? 'Мониторинг активен' : 'Мониторинг остановлен'
 
-                {isMonitoring && (
-                    <div>
-                        <MetricBlock label='CPU' value={cpuPercent === null ? '…' : `${cpuPercent}%`} />
-                        <MetricBlock label='JS Heap' value={heapMb === null ? '…' : `${heapMb} MB`} />
-                    </div>
+    return (
+        <main className={styles.panel} data-theme={theme}>
+            <header className={styles.header}>
+                <div>
+                    <p className={styles.eyebrow}>DEVTOOLS · PERFORMANCE</p>
+                    <h1 className={styles.title}>Mac Stats</h1>
+                </div>
+                <span className={`${styles.status} ${isMonitoring ? styles.statusActive : ''}`} role='status'>
+                    <span className={styles.statusDot} />
+                    {statusText}
+                </span>
+            </header>
+
+            <section className={styles.section} aria-labelledby='device-heading'>
+                <h2 className={styles.sectionTitle} id='device-heading'>
+                    Устройство
+                </h2>
+
+                <dl className={styles.deviceList}>
+                    <DeviceRow label='Платформа' value={formatPlatform(device?.platform)} />
+                    <DeviceRow label='Архитектура' value={formatArchitecture(device)} />
+                    <DeviceRow label='Ядра CPU' value={device?.cores?.toString() ?? 'Определяю…'} />
+                </dl>
+            </section>
+
+            <section className={styles.section} aria-labelledby='metrics-heading'>
+                <div className={styles.sectionHeader}>
+                    <h2 className={styles.sectionTitle} id='metrics-heading'>
+                        Метрики вкладки
+                    </h2>
+                    <span className={styles.sectionHint}>Обновление каждую секунду</span>
+                </div>
+
+                <div className={styles.metricGrid}>
+                    <MetricCard label='FPS, оценка' value={formatMetric(fps)} />
+                    <MetricCard label='Длинные задачи / 10 с' value={formatMetric(longTasks)} />
+                    <MetricCard label='CPU' value={cpuPercent === null ? '—' : `${cpuPercent}%`} />
+                    <MetricCard label='JS Heap' value={heapMb === null ? '—' : `${heapMb} MB`} />
+                </div>
+
+                {!isMonitoring && (
+                    <p className={styles.helperText}>Запустите мониторинг, чтобы собирать метрики этой вкладки.</p>
                 )}
-            </div>
+            </section>
+
+            {error && (
+                <p className={styles.error} role='alert'>
+                    {error}
+                </p>
+            )}
+
+            <button
+                className={`${styles.button} ${isMonitoring ? styles.buttonStop : ''}`}
+                type='button'
+                onClick={handleToggleMonitoring}
+                disabled={isBusy}
+            >
+                {isBusy ? 'Подключение…' : isMonitoring ? 'Остановить мониторинг' : 'Начать мониторинг'}
+            </button>
+
+            <p className={styles.footer}>Данные остаются в браузере</p>
+        </main>
+    )
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+    return (
+        <div className={styles.metricCard}>
+            <span className={styles.metricValue}>{value}</span>
+            <span className={styles.metricLabel}>{label}</span>
         </div>
     )
 }
 
-function MetricBlock({ label, value }: { label: string; value: string }) {
+function DeviceRow({ label, value }: { label: string; value: string }) {
     return (
-        <div>
-            <div>{value}</div>
-            <div>{label}</div>
+        <div className={styles.deviceRow}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
         </div>
     )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-    return (
-        <div>
-            <span>{label}</span>
-            <span>{value}</span>
-        </div>
-    )
+function formatMetric(value: number | null) {
+    return value === null ? '—' : String(value)
+}
+
+function formatPlatform(platform: string | null | undefined) {
+    if (!platform) return 'Неизвестно'
+
+    const labels: Record<string, string> = {
+        mac: 'macOS',
+        win: 'Windows',
+        linux: 'Linux',
+        cros: 'ChromeOS',
+        android: 'Android',
+        openbsd: 'OpenBSD'
+    }
+
+    return labels[platform] ?? platform
+}
+
+function formatArchitecture(device: DeviceInfo | null) {
+    if (!device?.architecture) return 'Неизвестно'
+
+    const architecture = device.architecture.toLowerCase()
+
+    if (device.platform === 'mac' && (architecture === 'arm' || architecture === 'arm64')) {
+        return 'Apple Silicon'
+    }
+
+    const labels: Record<string, string> = {
+        arm: 'ARM',
+        arm64: 'ARM64',
+        'x86-32': 'x86 32-bit',
+        'x86-64': 'x86 64-bit',
+        x86: 'x86'
+    }
+
+    return labels[architecture] ?? device.architecture
 }

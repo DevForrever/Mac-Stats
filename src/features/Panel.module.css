@@ -1,0 +1,266 @@
+.panel {
+    --background: #f4f6fa;
+    --surface: #ffffff;
+    --surface-muted: #f8f9fc;
+    --text: #202431;
+    --text-muted: #7a8191;
+    --border: #e5e8ef;
+    --accent: #5b63e8;
+    --accent-hover: #484fd0;
+    --success: #16875d;
+    --success-bg: #e9f7f0;
+    --danger: #b23a48;
+    --danger-hover: #982e3b;
+    --error-bg: #fff0f1;
+
+    min-height: 100vh;
+    padding: 20px;
+    background: var(--background);
+    color: var(--text);
+    color-scheme: light;
+    font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.panel[data-theme='dark'] {
+    --background: #1e2027;
+    --surface: #272a33;
+    --surface-muted: #22252d;
+    --text: #edf0f7;
+    --text-muted: #a0a6b5;
+    --border: #383c48;
+    --accent: #9298ff;
+    --accent-hover: #aab0ff;
+    --success: #72d6a9;
+    --success-bg: #203a32;
+    --danger: #ff929a;
+    --danger-hover: #ffb0b6;
+    --error-bg: #442a30;
+
+    color-scheme: dark;
+}
+
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.eyebrow {
+    margin: 0 0 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}
+
+.title {
+    margin: 0;
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    padding: 6px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.statusActive {
+    border-color: transparent;
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.statusDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.section {
+    margin-bottom: 18px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 9px;
+}
+
+.sectionTitle {
+    margin: 0 0 9px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.sectionHeader .sectionTitle {
+    margin-bottom: 0;
+}
+
+.sectionHint {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-align: right;
+}
+
+.deviceList {
+    margin: 0;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.deviceRow {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 9px 0;
+}
+
+.deviceRow + .deviceRow {
+    border-top: 1px solid var(--border);
+}
+
+.deviceRow dt {
+    color: var(--text-muted);
+}
+
+.deviceRow dd {
+    margin: 0;
+    color: var(--text);
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.metricGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.metricCard {
+    display: flex;
+    min-height: 86px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 13px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.metricValue {
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.metricLabel {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.helperText,
+.footer {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.helperText {
+    margin: 10px 2px 0;
+}
+
+.error {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--danger);
+    border-radius: 8px;
+    background: var(--error-bg);
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.button {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 14px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--accent);
+    color: #ffffff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 650;
+    transition:
+        background-color 120ms ease,
+        transform 120ms ease;
+}
+
+.button:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.button:disabled {
+    cursor: wait;
+    opacity: 0.7;
+}
+
+.buttonStop {
+    background: var(--danger);
+}
+
+.buttonStop:hover:not(:disabled) {
+    background: var(--danger-hover);
+}
+
+.footer {
+    margin: 12px 0 0;
+    text-align: center;
+}
+
+@media (max-width: 330px) {
+    .panel {
+        padding: 14px;
+    }
+
+    .header {
+        flex-direction: column;
+    }
+
+    .metricGrid {
+        grid-template-columns: 1fr;
+    }
+}

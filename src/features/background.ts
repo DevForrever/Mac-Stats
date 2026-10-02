@@ -1,64 +1,258 @@
-let monitoredTabId: number | null = null
-let pollTimer: ReturnType<typeof setInterval> | null = null
+type PanelCommand = { type: 'START_MONITORING'; tabId: number } | { type: 'STOP_MONITORING' }
 
-type StartMessage = { type: 'START_MONITORING'; tabId: number }
-type StopMessage = { type: 'STOP_MONITORING' }
-type InboundMessage = StartMessage | StopMessage
-
-chrome.runtime.onMessage.addListener((message: InboundMessage, _sender, sendResponse) => {
-    if (message.type === 'START_MONITORING') {
-        startMonitoring(message.tabId)
-            .then(() => sendResponse({ ok: true }))
-            .catch((err) => sendResponse({ ok: false, error: String(err) }))
-        return true
-    }
-
-    if (message.type === 'STOP_MONITORING') {
-        stopMonitoring()
-        sendResponse({ ok: true })
-        return true
-    }
-})
-
-async function startMonitoring(tabId: number) {
-    if (monitoredTabId !== null && monitoredTabId !== tabId) {
-        stopMonitoring()
-    }
-
-    monitoredTabId = tabId
-
-    await chrome.debugger.attach({ tabId }, '1.3')
-    await chrome.debugger.sendCommand({ tabId }, 'Performance.enable')
-    await chrome.debugger.sendCommand({ tabId }, 'Runtime.enable')
-
-    pollTimer = setInterval(async () => {
-        if (monitoredTabId === null) return
-
-        try {
-            const [performanceResult, heapResult] = await Promise.all([
-                chrome.debugger.sendCommand({ tabId: monitoredTabId }, 'Performance.getMetrics'),
-                chrome.debugger.sendCommand({ tabId: monitoredTabId }, 'Runtime.getHeapUsage')
-            ])
-
-            chrome.runtime.sendMessage({
-                type: 'METRICS_UPDATE',
-                metrics: performanceResult,
-                heap: heapResult
-            })
-        } catch {
-            stopMonitoring()
-        }
-    }, 1000)
+type PanelResponse = {
+    type: 'MONITORING_STATE'
+    ok: boolean
+    isMonitoring: boolean
+    error?: string
 }
 
-function stopMonitoring() {
+type MetricsUpdateMessage = {
+    type: 'METRICS_UPDATE'
+    metrics: { metrics: { name: string; value: number }[] }
+    heap: { usedSize: number; totalSize: number }
+}
+
+type RawMetric = {
+    name: string
+    value: number
+}
+
+type PerformanceMetricsResult = {
+    metrics: RawMetric[]
+}
+
+type HeapUsage = {
+    usedSize: number
+    totalSize: number
+}
+
+function isPerformanceMetricsResult(value: object | undefined): value is PerformanceMetricsResult {
+    if (!value || !('metrics' in value) || !Array.isArray(value.metrics)) {
+        return false
+    }
+
+    return value.metrics.every(
+        (metric: unknown) =>
+            typeof metric === 'object' &&
+            metric !== null &&
+            'name' in metric &&
+            typeof metric.name === 'string' &&
+            'value' in metric &&
+            typeof metric.value === 'number'
+    )
+}
+
+function isHeapUsage(value: object | undefined): value is HeapUsage {
+    return (
+        value !== undefined &&
+        'usedSize' in value &&
+        typeof value.usedSize === 'number' &&
+        'totalSize' in value &&
+        typeof value.totalSize === 'number'
+    )
+}
+
+type PageMetricsUpdateMessage = {
+    type: 'PAGE_METRICS_UPDATE'
+    fps?: number
+    longTasksLast10s?: number
+}
+
+let monitoredTabId: number | null = null
+let monitoringPort: chrome.runtime.Port | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let isPolling = false
+
+function post(port: chrome.runtime.Port | null, message: unknown) {
+    if (!port) return
+
+    try {
+        port.postMessage(message)
+    } catch {
+        // Порт мог закрыться раньше, чем пришёл ответ.
+    }
+}
+
+async function sendPageCommand(tabId: number, type: 'START_PAGE_METRICS' | 'STOP_PAGE_METRICS') {
+    try {
+        await chrome.tabs.sendMessage(tabId, { type })
+    } catch {
+        // Например, content script недоступен на системной странице Chrome.
+    }
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name !== 'mac-stats-panel') return
+
+    port.onMessage.addListener((message: PanelCommand) => {
+        if (message.type === 'START_MONITORING') {
+            void startMonitoring(message.tabId, port)
+                .then(() => {
+                    post(port, {
+                        type: 'MONITORING_STATE',
+                        ok: true,
+                        isMonitoring: true
+                    } satisfies PanelResponse)
+                })
+                .catch((error: unknown) => {
+                    post(port, {
+                        type: 'MONITORING_STATE',
+                        ok: false,
+                        isMonitoring: false,
+                        error: error instanceof Error ? error.message : String(error)
+                    } satisfies PanelResponse)
+                })
+
+            return
+        }
+
+        if (message.type === 'STOP_MONITORING') {
+            void stopMonitoring()
+        }
+    })
+
+    port.onDisconnect.addListener(() => {
+        if (monitoringPort === port) {
+            void stopMonitoring()
+        }
+    })
+})
+
+async function startMonitoring(tabId: number, owner: chrome.runtime.Port) {
+    if (monitoredTabId === tabId && monitoringPort === owner && pollTimer !== null) {
+        return
+    }
+
+    await stopMonitoring()
+
+    let attached = false
+
+    try {
+        await chrome.debugger.attach({ tabId }, '1.3')
+        attached = true
+
+        monitoredTabId = tabId
+        monitoringPort = owner
+
+        await chrome.debugger.sendCommand({ tabId }, 'Performance.enable')
+        await chrome.debugger.sendCommand({ tabId }, 'Runtime.enable')
+
+        await sendPageCommand(tabId, 'START_PAGE_METRICS')
+
+        pollTimer = setInterval(() => {
+            void pollMetrics()
+        }, 1000)
+    } catch (error) {
+        if (attached) {
+            await stopMonitoring()
+        }
+
+        throw error
+    }
+}
+
+async function pollMetrics() {
+    const tabId = monitoredTabId
+    const owner = monitoringPort
+
+    if (tabId === null || owner === null || isPolling) return
+
+    isPolling = true
+
+    try {
+        const [performanceResult, heapResult] = await Promise.all([
+            chrome.debugger.sendCommand({ tabId }, 'Performance.getMetrics'),
+            chrome.debugger.sendCommand({ tabId }, 'Runtime.getHeapUsage')
+        ])
+
+        if (!isPerformanceMetricsResult(performanceResult) || !isHeapUsage(heapResult)) {
+            throw new Error('Chrome вернул метрики в неожиданном формате')
+        }
+        // Не отправляем результат устаревшего запроса после остановки мониторинга.
+        if (monitoredTabId !== tabId || monitoringPort !== owner) return
+
+        post(owner, {
+            type: 'METRICS_UPDATE',
+            metrics: performanceResult,
+            heap: heapResult
+        } satisfies MetricsUpdateMessage)
+    } catch {
+        await stopMonitoring('Связь с вкладкой потеряна')
+    } finally {
+        isPolling = false
+    }
+}
+
+async function stopMonitoring(error?: string) {
+    const tabId = monitoredTabId
+    const owner = monitoringPort
+
     if (pollTimer !== null) {
         clearInterval(pollTimer)
         pollTimer = null
     }
 
-    if (monitoredTabId !== null) {
-        chrome.debugger.detach({ tabId: monitoredTabId }).catch(() => {})
-        monitoredTabId = null
+    monitoredTabId = null
+    monitoringPort = null
+
+    if (tabId !== null) {
+        await sendPageCommand(tabId, 'STOP_PAGE_METRICS')
+
+        try {
+            await chrome.debugger.detach({ tabId })
+        } catch {
+            // Вкладка могла закрыться или debugger уже мог отсоединиться.
+        }
     }
+
+    post(owner, {
+        type: 'MONITORING_STATE',
+        ok: error === undefined,
+        isMonitoring: false,
+        ...(error ? { error } : {})
+    } satisfies PanelResponse)
 }
+
+chrome.debugger.onDetach.addListener((source) => {
+    if (source.tabId === undefined || source.tabId !== monitoredTabId) return
+
+    const owner = monitoringPort
+
+    if (pollTimer !== null) {
+        clearInterval(pollTimer)
+        pollTimer = null
+    }
+
+    monitoredTabId = null
+    monitoringPort = null
+
+    void sendPageCommand(source.tabId, 'STOP_PAGE_METRICS')
+
+    post(owner, {
+        type: 'MONITORING_STATE',
+        ok: false,
+        isMonitoring: false,
+        error: 'Debugger отсоединён от вкладки'
+    } satisfies PanelResponse)
+})
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    // После полной перезагрузки страницы content script запускается заново.
+    if (tabId === monitoredTabId && changeInfo.status === 'complete') {
+        void sendPageCommand(tabId, 'START_PAGE_METRICS')
+    }
+})
+
+function isPageMetricsUpdate(message: unknown): message is PageMetricsUpdateMessage {
+    return (
+        typeof message === 'object' && message !== null && 'type' in message && message.type === 'PAGE_METRICS_UPDATE'
+    )
+}
+
+chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+    if (!isPageMetricsUpdate(message)) return
+    if (sender.tab?.id !== monitoredTabId) return
+
+    post(monitoringPort, message)
+})
