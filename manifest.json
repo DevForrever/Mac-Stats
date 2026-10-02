@@ -1,0 +1,20 @@
+{
+    "manifest_version": 3,
+    "name": "Mac Stats",
+    "version": "0.1.0",
+    "description": "Показывает нагрузку CPU, память, FPS и long tasks текущей вкладки",
+    "devtools_page": "index.html",
+    "background": {
+        "service_worker": "src/features/background.ts",
+        "type": "module"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["src/features/content.ts"],
+            "run_at": "document_start"
+        }
+    ],
+    "permissions": ["debugger", "scripting"],
+    "host_permissions": ["<all_urls>"]
+}
