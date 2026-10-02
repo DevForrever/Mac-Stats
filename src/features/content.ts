@@ -55,9 +55,7 @@ function startPageMetrics() {
         })
 
         observer.observe({ type: 'longtask', buffered: true })
-    } catch {
-        // Некоторые окружения не предоставляют Long Tasks API.
-    }
+    } catch {}
 
     reportTimer = setInterval(() => {
         const now = performance.now()

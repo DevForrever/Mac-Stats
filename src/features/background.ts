@@ -7,12 +7,6 @@ type PanelResponse = {
     error?: string
 }
 
-type MetricsUpdateMessage = {
-    type: 'METRICS_UPDATE'
-    metrics: { metrics: { name: string; value: number }[] }
-    heap: { usedSize: number; totalSize: number }
-}
-
 type RawMetric = {
     name: string
     value: number
@@ -25,6 +19,12 @@ type PerformanceMetricsResult = {
 type HeapUsage = {
     usedSize: number
     totalSize: number
+}
+
+type MetricsUpdateMessage = {
+    type: 'METRICS_UPDATE'
+    metrics: PerformanceMetricsResult
+    heap: HeapUsage
 }
 
 function isPerformanceMetricsResult(value: object | undefined): value is PerformanceMetricsResult {
@@ -69,17 +69,13 @@ function post(port: chrome.runtime.Port | null, message: unknown) {
 
     try {
         port.postMessage(message)
-    } catch {
-        // Порт мог закрыться раньше, чем пришёл ответ.
-    }
+    } catch {}
 }
 
 async function sendPageCommand(tabId: number, type: 'START_PAGE_METRICS' | 'STOP_PAGE_METRICS') {
     try {
         await chrome.tabs.sendMessage(tabId, { type })
-    } catch {
-        // Например, content script недоступен на системной странице Chrome.
-    }
+    } catch {}
 }
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -169,7 +165,6 @@ async function pollMetrics() {
         if (!isPerformanceMetricsResult(performanceResult) || !isHeapUsage(heapResult)) {
             throw new Error('Chrome вернул метрики в неожиданном формате')
         }
-        // Не отправляем результат устаревшего запроса после остановки мониторинга.
         if (monitoredTabId !== tabId || monitoringPort !== owner) return
 
         post(owner, {
@@ -201,9 +196,7 @@ async function stopMonitoring(error?: string) {
 
         try {
             await chrome.debugger.detach({ tabId })
-        } catch {
-            // Вкладка могла закрыться или debugger уже мог отсоединиться.
-        }
+        } catch {}
     }
 
     post(owner, {
@@ -238,7 +231,6 @@ chrome.debugger.onDetach.addListener((source) => {
 })
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    // После полной перезагрузки страницы content script запускается заново.
     if (tabId === monitoredTabId && changeInfo.status === 'complete') {
         void sendPageCommand(tabId, 'START_PAGE_METRICS')
     }

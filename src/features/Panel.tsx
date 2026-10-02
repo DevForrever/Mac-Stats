@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import styles from './Panel.module.css'
+import s from './Panel.module.css'
 
 type DeviceInfo = {
     architecture: string | null
-    platform: string | null
     cores: number | null
 }
 
@@ -54,11 +53,10 @@ export function Panel() {
 
         chrome.runtime
             .getPlatformInfo()
-            .then(({ os, arch }) => {
+            .then(({ arch }) => {
                 if (!mounted) return
 
                 setDevice({
-                    platform: os,
                     architecture: arch,
                     cores: navigator.hardwareConcurrency ?? null
                 })
@@ -67,7 +65,6 @@ export function Panel() {
                 if (!mounted) return
 
                 setDevice({
-                    platform: null,
                     architecture: null,
                     cores: navigator.hardwareConcurrency ?? null
                 })
@@ -93,7 +90,12 @@ export function Panel() {
                 setError(message.ok ? null : (message.error ?? 'Не удалось подключиться к вкладке'))
 
                 if (!message.isMonitoring) {
-                    resetMetrics()
+                    setCpuPercent(null)
+                    setHeapMb(null)
+                    setFps(null)
+                    setLongTasks(null)
+                    prevTaskDuration.current = null
+                    prevTimestamp.current = null
                 }
 
                 return
@@ -159,15 +161,6 @@ export function Panel() {
         }
     }, [])
 
-    function resetMetrics() {
-        setCpuPercent(null)
-        setHeapMb(null)
-        setFps(null)
-        setLongTasks(null)
-        prevTaskDuration.current = null
-        prevTimestamp.current = null
-    }
-
     function handleToggleMonitoring() {
         const port = portRef.current
 
@@ -194,39 +187,39 @@ export function Panel() {
     const statusText = isBusy ? 'Подключение…' : isMonitoring ? 'Мониторинг активен' : 'Мониторинг остановлен'
 
     return (
-        <main className={styles.panel} data-theme={theme}>
-            <header className={styles.header}>
+        <main className={s.panel} data-theme={theme}>
+            <header className={s.header}>
                 <div>
-                    <p className={styles.eyebrow}>DEVTOOLS · PERFORMANCE</p>
-                    <h1 className={styles.title}>Mac Stats</h1>
+                    <p className={s.eyebrow}>DEVTOOLS · PERFORMANCE</p>
+                    <h1 className={s.title}>Mac Stats</h1>
                 </div>
-                <span className={`${styles.status} ${isMonitoring ? styles.statusActive : ''}`} role='status'>
-                    <span className={styles.statusDot} />
+                <span className={`${s.status} ${isMonitoring ? s.statusActive : ''}`} role='status'>
+                    <span className={s.statusDot} />
                     {statusText}
                 </span>
             </header>
 
-            <section className={styles.section} aria-labelledby='device-heading'>
-                <h2 className={styles.sectionTitle} id='device-heading'>
+            <section className={s.section} aria-labelledby='device-heading'>
+                <h2 className={s.sectionTitle} id='device-heading'>
                     Устройство
                 </h2>
 
-                <dl className={styles.deviceList}>
-                    <DeviceRow label='Платформа' value={formatPlatform(device?.platform)} />
-                    <DeviceRow label='Архитектура' value={formatArchitecture(device)} />
+                <dl className={s.deviceList}>
+                    <DeviceRow label='Платформа' value='macOS' />
+                    <DeviceRow label='Архитектура' value={formatArchitecture(device?.architecture)} />
                     <DeviceRow label='Ядра CPU' value={device?.cores?.toString() ?? 'Определяю…'} />
                 </dl>
             </section>
 
-            <section className={styles.section} aria-labelledby='metrics-heading'>
-                <div className={styles.sectionHeader}>
-                    <h2 className={styles.sectionTitle} id='metrics-heading'>
+            <section className={s.section} aria-labelledby='metrics-heading'>
+                <div className={s.sectionHeader}>
+                    <h2 className={s.sectionTitle} id='metrics-heading'>
                         Метрики вкладки
                     </h2>
-                    <span className={styles.sectionHint}>Обновление каждую секунду</span>
+                    <span className={s.sectionHint}>Обновление каждую секунду</span>
                 </div>
 
-                <div className={styles.metricGrid}>
+                <div className={s.metricGrid}>
                     <MetricCard label='FPS, оценка' value={formatMetric(fps)} />
                     <MetricCard label='Длинные задачи / 10 с' value={formatMetric(longTasks)} />
                     <MetricCard label='CPU' value={cpuPercent === null ? '—' : `${cpuPercent}%`} />
@@ -234,18 +227,18 @@ export function Panel() {
                 </div>
 
                 {!isMonitoring && (
-                    <p className={styles.helperText}>Запустите мониторинг, чтобы собирать метрики этой вкладки.</p>
+                    <p className={s.helperText}>Запустите мониторинг, чтобы собирать метрики этой вкладки.</p>
                 )}
             </section>
 
             {error && (
-                <p className={styles.error} role='alert'>
+                <p className={s.error} role='alert'>
                     {error}
                 </p>
             )}
 
             <button
-                className={`${styles.button} ${isMonitoring ? styles.buttonStop : ''}`}
+                className={`${s.button} ${isMonitoring ? s.buttonStop : ''}`}
                 type='button'
                 onClick={handleToggleMonitoring}
                 disabled={isBusy}
@@ -253,23 +246,23 @@ export function Panel() {
                 {isBusy ? 'Подключение…' : isMonitoring ? 'Остановить мониторинг' : 'Начать мониторинг'}
             </button>
 
-            <p className={styles.footer}>Данные остаются в браузере</p>
+            <p className={s.footer}>Данные остаются в браузере</p>
         </main>
     )
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
     return (
-        <div className={styles.metricCard}>
-            <span className={styles.metricValue}>{value}</span>
-            <span className={styles.metricLabel}>{label}</span>
+        <div className={s.metricCard}>
+            <span className={s.metricValue}>{value}</span>
+            <span className={s.metricLabel}>{label}</span>
         </div>
     )
 }
 
 function DeviceRow({ label, value }: { label: string; value: string }) {
     return (
-        <div className={styles.deviceRow}>
+        <div className={s.deviceRow}>
             <dt>{label}</dt>
             <dd>{value}</dd>
         </div>
@@ -280,37 +273,10 @@ function formatMetric(value: number | null) {
     return value === null ? '—' : String(value)
 }
 
-function formatPlatform(platform: string | null | undefined) {
-    if (!platform) return 'Неизвестно'
+function formatArchitecture(architecture: string | null | undefined) {
+    if (!architecture) return 'Неизвестно'
+    if (architecture === 'arm' || architecture === 'arm64') return 'Apple Silicon'
+    if (architecture.startsWith('x86')) return 'Intel'
 
-    const labels: Record<string, string> = {
-        mac: 'macOS',
-        win: 'Windows',
-        linux: 'Linux',
-        cros: 'ChromeOS',
-        android: 'Android',
-        openbsd: 'OpenBSD'
-    }
-
-    return labels[platform] ?? platform
-}
-
-function formatArchitecture(device: DeviceInfo | null) {
-    if (!device?.architecture) return 'Неизвестно'
-
-    const architecture = device.architecture.toLowerCase()
-
-    if (device.platform === 'mac' && (architecture === 'arm' || architecture === 'arm64')) {
-        return 'Apple Silicon'
-    }
-
-    const labels: Record<string, string> = {
-        arm: 'ARM',
-        arm64: 'ARM64',
-        'x86-32': 'x86 32-bit',
-        'x86-64': 'x86 64-bit',
-        x86: 'x86'
-    }
-
-    return labels[architecture] ?? device.architecture
+    return architecture
 }
