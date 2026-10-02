@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { App } from './App'
+import { Panel } from '../features/Panel'
 import './index.css'
 
 const rootElement = document.getElementById('root')
@@ -24,7 +24,7 @@ if (!isDevToolsPage) {
 } else {
     root.render(
         <StrictMode>
-            <App />
+            <Panel />
         </StrictMode>
     )
 }
