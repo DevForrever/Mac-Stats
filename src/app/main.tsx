@@ -6,7 +6,7 @@ import './index.css'
 const rootElement = document.getElementById('root')
 
 if (!rootElement) {
-    throw new Error('Не найден элемент #root')
+    throw new Error('Root element #root was not found')
 }
 
 const root = createRoot(rootElement)
@@ -16,7 +16,7 @@ const isPanelPage = new URLSearchParams(window.location.search).has('panel')
 if (!isDevToolsPage) {
     root.render(
         <main style={{ padding: 20, fontFamily: 'system-ui, sans-serif' }}>
-            Откройте Mac Stats из панели расширения Chrome DevTools.
+            Open Mac Stats from the Chrome DevTools panel.
         </main>
     )
 } else if (!isPanelPage) {

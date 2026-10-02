@@ -163,7 +163,7 @@ async function pollMetrics() {
         ])
 
         if (!isPerformanceMetricsResult(performanceResult) || !isHeapUsage(heapResult)) {
-            throw new Error('Chrome вернул метрики в неожиданном формате')
+            throw new Error('Chrome returned metrics in an unexpected format')
         }
         if (monitoredTabId !== tabId || monitoringPort !== owner) return
 
@@ -173,7 +173,7 @@ async function pollMetrics() {
             heap: heapResult
         } satisfies MetricsUpdateMessage)
     } catch {
-        await stopMonitoring('Связь с вкладкой потеряна')
+        await stopMonitoring('Connection to the tab was lost')
     } finally {
         isPolling = false
     }
@@ -226,7 +226,7 @@ chrome.debugger.onDetach.addListener((source) => {
         type: 'MONITORING_STATE',
         ok: false,
         isMonitoring: false,
-        error: 'Debugger отсоединён от вкладки'
+        error: 'Debugger detached from the tab'
     } satisfies PanelResponse)
 })
 

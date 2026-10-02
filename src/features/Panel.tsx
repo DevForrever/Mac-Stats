@@ -87,7 +87,7 @@ export function Panel() {
             if (message.type === 'MONITORING_STATE') {
                 setIsMonitoring(message.isMonitoring)
                 setIsBusy(false)
-                setError(message.ok ? null : (message.error ?? 'Не удалось подключиться к вкладке'))
+                setError(message.ok ? null : (message.error ?? 'Unable to connect to the tab'))
 
                 if (!message.isMonitoring) {
                     setCpuPercent(null)
@@ -147,7 +147,7 @@ export function Panel() {
 
             setIsMonitoring(false)
             setIsBusy(false)
-            setError('Соединение с фоновым процессом потеряно')
+            setError('Connection to the background service was lost')
         })
 
         return () => {
@@ -180,11 +180,11 @@ export function Panel() {
             }
         } catch (requestError) {
             setIsBusy(false)
-            setError(requestError instanceof Error ? requestError.message : 'Не удалось отправить команду мониторинга')
+            setError(requestError instanceof Error ? requestError.message : 'Could not send the monitoring command')
         }
     }
 
-    const statusText = isBusy ? 'Подключение…' : isMonitoring ? 'Мониторинг активен' : 'Мониторинг остановлен'
+    const statusText = isBusy ? 'Connecting…' : isMonitoring ? 'Monitoring active' : 'Monitoring stopped'
 
     return (
         <main className={s.panel} data-theme={theme}>
@@ -201,33 +201,33 @@ export function Panel() {
 
             <section className={s.section} aria-labelledby='device-heading'>
                 <h2 className={s.sectionTitle} id='device-heading'>
-                    Устройство
+                    Device
                 </h2>
 
                 <dl className={s.deviceList}>
-                    <DeviceRow label='Платформа' value='macOS' />
-                    <DeviceRow label='Архитектура' value={formatArchitecture(device?.architecture)} />
-                    <DeviceRow label='Ядра CPU' value={device?.cores?.toString() ?? 'Определяю…'} />
+                    <DeviceRow label='Platform' value='macOS' />
+                    <DeviceRow label='Architecture' value={formatArchitecture(device?.architecture)} />
+                    <DeviceRow label='CPU cores' value={device?.cores?.toString() ?? 'Detecting…'} />
                 </dl>
             </section>
 
             <section className={s.section} aria-labelledby='metrics-heading'>
                 <div className={s.sectionHeader}>
                     <h2 className={s.sectionTitle} id='metrics-heading'>
-                        Метрики вкладки
+                        Tab metrics
                     </h2>
-                    <span className={s.sectionHint}>Обновление каждую секунду</span>
+                    <span className={s.sectionHint}>Updates every second</span>
                 </div>
 
                 <div className={s.metricGrid}>
-                    <MetricCard label='FPS, оценка' value={formatMetric(fps)} />
-                    <MetricCard label='Длинные задачи / 10 с' value={formatMetric(longTasks)} />
+                    <MetricCard label='FPS estimate' value={formatMetric(fps)} />
+                    <MetricCard label='Long tasks / 10s' value={formatMetric(longTasks)} />
                     <MetricCard label='CPU' value={cpuPercent === null ? '—' : `${cpuPercent}%`} />
                     <MetricCard label='JS Heap' value={heapMb === null ? '—' : `${heapMb} MB`} />
                 </div>
 
                 {!isMonitoring && (
-                    <p className={s.helperText}>Запустите мониторинг, чтобы собирать метрики этой вкладки.</p>
+                    <p className={s.helperText}>Start monitoring to collect metrics for this tab.</p>
                 )}
             </section>
 
@@ -243,10 +243,10 @@ export function Panel() {
                 onClick={handleToggleMonitoring}
                 disabled={isBusy}
             >
-                {isBusy ? 'Подключение…' : isMonitoring ? 'Остановить мониторинг' : 'Начать мониторинг'}
+                {isBusy ? 'Connecting…' : isMonitoring ? 'Stop monitoring' : 'Start monitoring'}
             </button>
 
-            <p className={s.footer}>Данные остаются в браузере</p>
+            <p className={s.footer}>Your data stays in your browser</p>
         </main>
     )
 }
@@ -274,7 +274,7 @@ function formatMetric(value: number | null) {
 }
 
 function formatArchitecture(architecture: string | null | undefined) {
-    if (!architecture) return 'Неизвестно'
+    if (!architecture) return 'Unknown'
     if (architecture === 'arm' || architecture === 'arm64') return 'Apple Silicon'
     if (architecture.startsWith('x86')) return 'Intel'
 
