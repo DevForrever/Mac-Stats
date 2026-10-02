@@ -14,7 +14,11 @@ const recentLongTasks: number[] = []
 function sendUpdate(payload: { fps?: number; longTasksLast10s?: number }) {
     if (!isMonitoring) return
 
-    void chrome.runtime.sendMessage({ type: 'PAGE_METRICS_UPDATE', ...payload }).catch(() => {})
+    try {
+        void chrome.runtime.sendMessage({ type: 'PAGE_METRICS_UPDATE', ...payload }).catch(() => {})
+    } catch {
+        stopPageMetrics()
+    }
 }
 
 function frameTick() {
@@ -26,15 +30,17 @@ function frameTick() {
     const elapsed = now - lastFpsReportTime
 
     if (elapsed >= 1000) {
-        const fpsEstimate = Math.round((frameCount / elapsed) * 1000)
+        const fps = Math.round((frameCount / elapsed) * 1000)
 
-        sendUpdate({ fps: fpsEstimate })
+        sendUpdate({ fps })
 
         frameCount = 0
         lastFpsReportTime = now
     }
 
-    animationFrameId = requestAnimationFrame(frameTick)
+    if (isMonitoring) {
+        animationFrameId = requestAnimationFrame(frameTick)
+    }
 }
 
 function startPageMetrics() {

@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Mac Stats",
     "version": "0.1.0",
-    "description": "Displays CPU usage, JavaScript heap, estimated FPS, and long tasks for the inspected tab.",
+    "description": "Displays Platform, Architecture, CPU cores, FPS, CPU usage, JavaScript heap, and long tasks",
     "devtools_page": "index.html",
     "background": {
         "service_worker": "src/features/background.ts",

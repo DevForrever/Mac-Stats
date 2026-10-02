@@ -189,10 +189,7 @@ export function Panel() {
     return (
         <main className={s.panel} data-theme={theme}>
             <header className={s.header}>
-                <div>
-                    <p className={s.eyebrow}>DEVTOOLS · PERFORMANCE</p>
-                    <h1 className={s.title}>Mac Stats</h1>
-                </div>
+                <h1 className={s.title}>Mac Stats</h1>
                 <span className={`${s.status} ${isMonitoring ? s.statusActive : ''}`} role='status'>
                     <span className={s.statusDot} />
                     {statusText}
@@ -220,15 +217,13 @@ export function Panel() {
                 </div>
 
                 <div className={s.metricGrid}>
-                    <MetricCard label='FPS estimate' value={formatMetric(fps)} />
+                    <MetricCard label='FPS' value={formatMetric(fps)} />
                     <MetricCard label='Long tasks / 10s' value={formatMetric(longTasks)} />
                     <MetricCard label='CPU' value={cpuPercent === null ? '—' : `${cpuPercent}%`} />
                     <MetricCard label='JS Heap' value={heapMb === null ? '—' : `${heapMb} MB`} />
                 </div>
 
-                {!isMonitoring && (
-                    <p className={s.helperText}>Start monitoring to collect metrics for this tab.</p>
-                )}
+                {!isMonitoring && <p className={s.helperText}>Start monitoring to collect metrics for this tab.</p>}
             </section>
 
             {error && (
