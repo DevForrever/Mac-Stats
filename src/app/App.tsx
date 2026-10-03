@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import s from './App.module.css'
 
 const inDevTools = typeof chrome !== 'undefined' && Boolean(chrome.devtools?.panels)
-const isPanel = inDevTools && new URLSearchParams(location.search).has('panel')
+const panel = inDevTools && new URLSearchParams(location.search).has('panel')
 
 type Stats = { fps: number | null; longTasks: number | null; cpu: number | null; heap: number | null }
 type Message =
@@ -20,7 +20,7 @@ export function App() {
     const previous = useRef<{ task: number; time: number } | null>(null)
 
     useEffect(() => {
-        if (!isPanel) return
+        if (!panel) return
         chrome.runtime.getPlatformInfo().then(({ arch }) => {
             setArchitecture(
                 arch === 'arm' || arch === 'arm64' ? 'Apple Silicon' : arch.startsWith('x86') ? 'Intel' : arch
@@ -30,7 +30,7 @@ export function App() {
 
     useEffect(() => {
         if (!inDevTools) return
-        if (!isPanel) {
+        if (!panel) {
             if (!panelCreated.current) {
                 panelCreated.current = true
                 chrome.devtools.panels.create('Mac Stats', '', 'index.html?panel=1')
@@ -106,7 +106,7 @@ export function App() {
         }
     }
 
-    if (!isPanel) return null
+    if (!panel) return null
 
     return (
         <main className={s.panel} data-theme='dark'>
@@ -128,10 +128,8 @@ export function App() {
                 </div>
             </header>
 
-            <section className={s.section} aria-labelledby='device-heading'>
-                <h2 className={s.sectionTitle} id='device-heading'>
-                    Device
-                </h2>
+            <section className={s.section}>
+                <h2 className={s.sectionTitle}>Device</h2>
                 <dl className={s.deviceList}>
                     <DeviceRow label='Platform' value='macOS' />
                     <DeviceRow label='Architecture' value={architecture} />
@@ -139,10 +137,8 @@ export function App() {
                 </dl>
             </section>
 
-            <section className={s.section} aria-labelledby='metrics-heading'>
-                <h2 className={s.sectionTitle} id='metrics-heading'>
-                    Tab metrics
-                </h2>
+            <section className={s.section}>
+                <h2 className={s.sectionTitle}>Tab metrics</h2>
                 <div className={s.metricGrid}>
                     <MetricCard label='Long Tasks' value={stats.longTasks === null ? '—' : String(stats.longTasks)} />
                     <MetricCard label='CPU' value={stats.cpu === null ? '—' : `${stats.cpu}%`} />
