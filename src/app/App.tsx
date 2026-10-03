@@ -15,11 +15,9 @@ export function App() {
     const [stats, setStats] = useState<Stats>({ fps: null, longTasks: null, cpu: null, heap: null })
     const [monitoring, setMonitoring] = useState(false)
     const [busy, setBusy] = useState(true)
-    const [error, setError] = useState('')
     const port = useRef<chrome.runtime.Port | null>(null)
     const panelCreated = useRef(false)
     const previous = useRef<{ task: number; time: number } | null>(null)
-    const theme = inDevTools && chrome.devtools.panels.themeName === 'dark' ? 'dark' : 'light'
 
     useEffect(() => {
         if (!isPanel) return
@@ -47,11 +45,9 @@ export function App() {
 
         connection.onMessage.addListener((message: Message) => {
             if (!active) return
-
             if (message.type === 'MONITORING_STATE') {
                 setMonitoring(message.isMonitoring)
                 setBusy(false)
-                setError(message.ok ? '' : (message.error ?? 'Could not connect to the tab'))
                 if (!message.isMonitoring) {
                     previous.current = null
                     setStats({ fps: null, longTasks: null, cpu: null, heap: null })
@@ -87,7 +83,6 @@ export function App() {
             port.current = null
             setMonitoring(false)
             setBusy(false)
-            
         })
 
         return () => {
@@ -99,7 +94,6 @@ export function App() {
 
     function toggleMonitoring() {
         if (!port.current || busy) return
-        setError('')
         setBusy(true)
         try {
             port.current.postMessage(
@@ -109,24 +103,17 @@ export function App() {
             )
         } catch {
             setBusy(false)
-            setError('Could not send the monitoring command')
         }
     }
 
-    if (!isPanel) {
-        return (
-            <main className={s.panel} data-theme={theme}>
-                {inDevTools ? 'Opening Mac Stats panel…' : 'Open Mac Stats from Chrome DevTools.'}
-            </main>
-        )
-    }
+    if (!isPanel) return null
 
     return (
-        <main className={s.panel} data-theme={theme}>
+        <main className={s.panel} data-theme='dark'>
             <header className={s.header}>
                 <h1 className={s.title}>Mac Stats</h1>
                 <div className={s.headerActions}>
-                    <span className={`${s.status} ${monitoring ? s.statusActive : ''}`} role='status'>
+                    <span className={`${s.status} ${monitoring ? s.statusActive : ''}`}>
                         <span className={s.statusDot} />
                         {busy ? 'Connecting…' : monitoring ? 'Monitoring active' : 'Monitoring stopped'}
                     </span>
@@ -157,21 +144,12 @@ export function App() {
                     Tab metrics
                 </h2>
                 <div className={s.metricGrid}>
-                    <MetricCard
-                        label='Long Tasks (10s)'
-                        value={stats.longTasks === null ? '—' : String(stats.longTasks)}
-                    />
+                    <MetricCard label='Long Tasks' value={stats.longTasks === null ? '—' : String(stats.longTasks)} />
                     <MetricCard label='CPU' value={stats.cpu === null ? '—' : `${stats.cpu}%`} />
                     <MetricCard label='JS Heap' value={stats.heap === null ? '—' : `${stats.heap} MB`} />
                     <MetricCard label='FPS' value={stats.fps === null ? '—' : String(stats.fps)} />
                 </div>
             </section>
-
-            {error && (
-                <p className={s.error} role='alert'>
-                    {error}
-                </p>
-            )}
         </main>
     )
 }

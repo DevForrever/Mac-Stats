@@ -1,29 +1,14 @@
 .panel {
-    --background: #f4f6fa;
-    --surface: #ffffff;
-    --text: #202431;
-    --text-muted: #7a8191;
-    --border: #e5e8ef;
-    --accent: #5b63e8;
-    --accent-hover: #484fd0;
-    --success: #16875d;
-    --success-bg: #e9f7f0;
-    --danger: #b23a48;
-    --danger-hover: #982e3b;
-    --error-bg: #fff0f1;
-
     min-height: 100vh;
     padding: 20px;
     background: var(--background);
     color: var(--text);
-    color-scheme: light;
     font: 13px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .panel[data-theme='dark'] {
     --background: #1e2027;
     --surface: #272a33;
-    --surface-muted: #22252d;
     --text: #edf0f7;
     --text-muted: #a0a6b5;
     --border: #383c48;
