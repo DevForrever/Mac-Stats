@@ -125,10 +125,20 @@ export function App() {
         <main className={s.panel} data-theme={theme}>
             <header className={s.header}>
                 <h1 className={s.title}>Mac Stats</h1>
-                <span className={`${s.status} ${monitoring ? s.statusActive : ''}`} role='status'>
-                    <span className={s.statusDot} />
-                    {busy ? 'Connecting…' : monitoring ? 'Monitoring active' : 'Monitoring stopped'}
-                </span>
+                <div className={s.headerActions}>
+                    <span className={`${s.status} ${monitoring ? s.statusActive : ''}`} role='status'>
+                        <span className={s.statusDot} />
+                        {busy ? 'Connecting…' : monitoring ? 'Monitoring active' : 'Monitoring stopped'}
+                    </span>
+                    <button
+                        className={`${s.button} ${monitoring ? s.buttonActive : ''}`}
+                        type='button'
+                        onClick={toggleMonitoring}
+                        disabled={busy}
+                    >
+                        {monitoring ? 'Stop monitoring' : 'Start monitoring'}
+                    </button>
+                </div>
             </header>
 
             <section className={s.section} aria-labelledby='device-heading'>
@@ -162,14 +172,6 @@ export function App() {
                     {error}
                 </p>
             )}
-            <button
-                className={`${s.button} ${monitoring ? s.buttonStop : ''}`}
-                type='button'
-                onClick={toggleMonitoring}
-                disabled={busy}
-            >
-                {monitoring ? 'Stop monitoring' : 'Start monitoring'}
-            </button>
         </main>
     )
 }

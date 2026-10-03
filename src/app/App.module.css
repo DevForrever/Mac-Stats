@@ -47,6 +47,12 @@
     gap: 12px;
 }
 
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .title {
     margin: 0;
     color: var(--text);
@@ -180,23 +186,24 @@
 }
 
 .button {
-    width: 100%;
-    min-height: 40px;
-    padding: 9px 14px;
-    border: 0;
-    border-radius: 9px;
-    background: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 9px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: var(--success);
     color: #ffffff;
     cursor: pointer;
     font: inherit;
-    font-weight: 650;
-    transition:
-        background-color 120ms ease,
-        transform 120ms ease;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+    transition: background-color 120ms ease, transform 120ms ease;
 }
 
 .button:hover:not(:disabled) {
-    background: var(--accent-hover);
+    opacity: 0.88;
 }
 
 .button:active:not(:disabled) {
@@ -213,12 +220,21 @@
     opacity: 0.7;
 }
 
-.buttonStop {
-    background: var(--danger);
+.buttonActive {
+    background: var(--accent);
 }
 
-.buttonStop:hover:not(:disabled) {
-    background: var(--danger-hover);
+.buttonActive:hover:not(:disabled) {
+    background: var(--accent-hover);
+    opacity: 1;
+}
+
+.panel[data-theme='dark'] .button {
+    color: #202124;
+}
+
+.panel[data-theme='dark'] .buttonActive {
+    color: #ffffff;
 }
 
 @media (max-width: 760px) {
@@ -227,13 +243,20 @@
     }
 }
 
+@media (max-width: 420px) {
+    .header {
+        flex-direction: column;
+    }
+
+    .headerActions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
 @media (max-width: 330px) {
     .panel {
         padding: 14px;
-    }
-
-    .header {
-        flex-direction: column;
     }
 
     .metricGrid {
