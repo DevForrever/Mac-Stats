@@ -3,7 +3,7 @@
     "configVersion": 1,
     "workspaces": {
         "": {
-            "name": "vite-project",
+            "name": "mac-stats",
             "dependencies": {
                 "react": "^19.2.8",
                 "react-dom": "^19.2.8"

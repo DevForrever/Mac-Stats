@@ -1,106 +1,61 @@
-type PageMetricsCommand = {
-    type: 'START_PAGE_METRICS' | 'STOP_PAGE_METRICS'
-}
+type PageMetricsCommand = { type: 'START_PAGE_METRICS' | 'STOP_PAGE_METRICS' }
 
-let isMonitoring = false
-let frameCount = 0
-let lastFpsReportTime = 0
-let animationFrameId: number | null = null
-let reportTimer: ReturnType<typeof setInterval> | null = null
+let monitoring = false
+let frames = 0
+let lastReport = 0
+let frameId: number | null = null
 let observer: PerformanceObserver | null = null
+let longTasks: number[] = []
 
-const recentLongTasks: number[] = []
-
-function sendUpdate(payload: { fps?: number; longTasksLast10s?: number }) {
-    if (!isMonitoring) return
-
-    try {
-        void chrome.runtime.sendMessage({ type: 'PAGE_METRICS_UPDATE', ...payload }).catch(() => {})
-    } catch {
-        stopPageMetrics()
-    }
+function sendMetrics(fps: number, longTasks: number) {
+    if (!monitoring) return
+    chrome.runtime.sendMessage({ type: 'PAGE_METRICS_UPDATE', fps, longTasks }).catch(stopPageMetrics)
 }
 
-function frameTick() {
-    if (!isMonitoring) return
-
-    frameCount += 1
+function frame() {
+    if (!monitoring) return
+    frames += 1
 
     const now = performance.now()
-    const elapsed = now - lastFpsReportTime
-
-    if (elapsed >= 1000) {
-        const fps = Math.round((frameCount / elapsed) * 1000)
-
-        sendUpdate({ fps })
-
-        frameCount = 0
-        lastFpsReportTime = now
+    if (now - lastReport >= 1000) {
+        while (longTasks.length && now - longTasks[0] > 10_000) longTasks.shift()
+        sendMetrics(Math.round((frames / (now - lastReport)) * 1000), longTasks.length)
+        frames = 0
+        lastReport = now
     }
 
-    if (isMonitoring) {
-        animationFrameId = requestAnimationFrame(frameTick)
-    }
+    frameId = requestAnimationFrame(frame)
 }
 
 function startPageMetrics() {
-    if (isMonitoring) return
-
-    isMonitoring = true
-    frameCount = 0
-    lastFpsReportTime = performance.now()
-    recentLongTasks.length = 0
-
-    animationFrameId = requestAnimationFrame(frameTick)
+    if (monitoring) return
+    monitoring = true
+    frames = 0
+    longTasks = []
+    lastReport = performance.now()
 
     try {
         observer = new PerformanceObserver((list) => {
-            for (const entry of list.getEntries()) {
-                recentLongTasks.push(entry.startTime)
-            }
+            longTasks.push(...list.getEntries().map((entry) => entry.startTime))
         })
-
         observer.observe({ type: 'longtask', buffered: true })
-    } catch {}
+    } catch {
+        observer = null
+    }
 
-    reportTimer = setInterval(() => {
-        const now = performance.now()
-        const windowMs = 10_000
-
-        while (recentLongTasks.length > 0 && now - recentLongTasks[0] > windowMs) {
-            recentLongTasks.shift()
-        }
-
-        sendUpdate({ longTasksLast10s: recentLongTasks.length })
-    }, 1000)
+    frameId = requestAnimationFrame(frame)
 }
 
 function stopPageMetrics() {
-    if (!isMonitoring) return
-
-    isMonitoring = false
-
-    if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId)
-        animationFrameId = null
-    }
-
-    if (reportTimer !== null) {
-        clearInterval(reportTimer)
-        reportTimer = null
-    }
-
+    monitoring = false
+    if (frameId !== null) cancelAnimationFrame(frameId)
+    frameId = null
     observer?.disconnect()
     observer = null
-    recentLongTasks.length = 0
+    longTasks = []
 }
 
 chrome.runtime.onMessage.addListener((message: PageMetricsCommand) => {
-    if (message.type === 'START_PAGE_METRICS') {
-        startPageMetrics()
-    }
-
-    if (message.type === 'STOP_PAGE_METRICS') {
-        stopPageMetrics()
-    }
+    if (message.type === 'START_PAGE_METRICS') startPageMetrics()
+    else stopPageMetrics()
 })
