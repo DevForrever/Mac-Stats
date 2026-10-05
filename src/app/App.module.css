@@ -24,7 +24,7 @@
 }
 
 .header {
-    max-width: 840px;
+    max-width: 680px;
     margin: 0 auto 24px;
     display: flex;
     align-items: flex-start;
@@ -73,9 +73,21 @@
     background: currentColor;
 }
 
+.dashboard {
+    max-width: 680px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(200px, 0.8fr) minmax(0, 1.4fr);
+    gap: 12px;
+}
+
 .section {
-    max-width: 840px;
-    margin: 0 auto 18px;
+    min-width: 0;
+}
+
+.dashboard > .section:first-child {
+    display: flex;
+    flex-direction: column;
 }
 
 .sectionTitle {
@@ -86,6 +98,9 @@
 }
 
 .deviceList {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
     margin: 0;
     padding: 4px 12px;
     border: 1px solid var(--border);
@@ -95,6 +110,8 @@
 
 .deviceRow {
     display: flex;
+    flex: 1;
+    align-items: center;
     justify-content: space-between;
     gap: 14px;
     padding: 9px 0;
@@ -118,18 +135,17 @@
 
 .metricGrid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    margin-top: 10px;
 }
 
 .metricCard {
     display: flex;
-    min-height: 72px;
+    min-height: 86px;
     flex-direction: column;
     justify-content: center;
-    gap: 4px;
-    padding: 10px;
+    gap: 5px;
+    padding: 13px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: var(--surface);
@@ -137,7 +153,7 @@
 
 .metricValue {
     color: var(--text);
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.03em;
     line-height: 1.2;
@@ -156,7 +172,7 @@
 }
 
 .error {
-    max-width: 840px;
+    max-width: 680px;
     margin-right: auto;
     margin-left: auto;
     margin-top: 0;
@@ -222,9 +238,10 @@
     color: #ffffff;
 }
 
-@media (max-width: 760px) {
-    .metricGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 600px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+        gap: 14px;
     }
 }
 

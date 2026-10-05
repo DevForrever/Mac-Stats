@@ -128,24 +128,26 @@ export function App() {
                 </div>
             </header>
 
-            <section className={s.section}>
-                <h2 className={s.sectionTitle}>Device</h2>
-                <dl className={s.deviceList}>
-                    <DeviceRow label='Platform' value='macOS' />
-                    <DeviceRow label='Architecture' value={architecture} />
-                    <DeviceRow label='CPU cores' value={navigator.hardwareConcurrency?.toString() ?? '—'} />
-                </dl>
-            </section>
+            <div className={s.dashboard}>
+                <section className={s.section}>
+                    <h2 className={s.sectionTitle}>Device</h2>
+                    <dl className={s.deviceList}>
+                        <DeviceRow label='Platform' value='macOS' />
+                        <DeviceRow label='Architecture' value={architecture} />
+                        <DeviceRow label='CPU cores' value={navigator.hardwareConcurrency?.toString() ?? '—'} />
+                    </dl>
+                </section>
 
-            <section className={s.section}>
-                <h2 className={s.sectionTitle}>Tab metrics</h2>
-                <div className={s.metricGrid}>
-                    <MetricCard label='Long Tasks' value={stats.longTasks === null ? '—' : String(stats.longTasks)} />
-                    <MetricCard label='CPU' value={stats.cpu === null ? '—' : `${stats.cpu}%`} />
-                    <MetricCard label='JS Heap' value={stats.heap === null ? '—' : `${stats.heap} MB`} />
-                    <MetricCard label='FPS' value={stats.fps === null ? '—' : String(stats.fps)} />
-                </div>
-            </section>
+                <section className={s.section}>
+                    <h2 className={s.sectionTitle}>Tab metrics</h2>
+                    <div className={s.metricGrid}>
+                        <MetricCard label='Long Tasks' value={stats.longTasks === null ? '—' : String(stats.longTasks)} />
+                        <MetricCard label='CPU' value={stats.cpu === null ? '—' : `${stats.cpu}%`} />
+                        <MetricCard label='JS Heap' value={stats.heap === null ? '—' : `${stats.heap} MB`} />
+                        <MetricCard label='FPS' value={stats.fps === null ? '—' : String(stats.fps)} />
+                    </div>
+                </section>
+            </div>
         </main>
     )
 }

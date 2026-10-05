@@ -1,18 +1,14 @@
-# Mac Stats
+Mac Stats
+A Chrome DevTools extension that displays device information and metrics for the current tab.
+Metrics
 
-Расширение Chrome DevTools для просмотра метрик открытой вкладки:
+- Device: platform, architecture, and CPU core count.
+- Long Tasks: number of long tasks in the last 10 seconds.
+- CPU: estimated CPU usage of the tab.
+- JS Heap: JavaScript memory currently in use.
+- FPS: frame rate measured with requestAnimationFrame.
 
-- FPS
-- Long Tasks за последние 10 секунд
-- CPU вкладки и JS Heap
-
-## Запуск
-
-```bash
-bun install
-bun run build
-```
-
-Загрузите `dist` через **Load unpacked** на странице `chrome://extensions`, затем откройте панель **Mac Stats** в DevTools.
-
-CPU — оценка времени задач вкладки, FPS — частота `requestAnimationFrame`.
+Run: 
+1. bun install
+2. bun run build
+3. Open chrome://extensions, enable Developer mode, and select Load unpacked to load the dist folder. Then open DevTools on the tab you want to monitor, select Mac Stats, and click Start monitoring.
